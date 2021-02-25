@@ -1,0 +1,61 @@
+---
+# testing 
+
+- hosts: all
+  remote_user: ansible
+  become: yes
+  gather_facts: no
+  vars:
+    pg_ver: 13
+  
+
+  tasks:
+
+      ## Install Postgres
+      - name: Remove existing Postgres Version
+        yum:
+          name: postgresql*
+          state: absent
+
+
+      ## Install latest Postgres Version
+      - name: Install latest postgres version
+        yum:
+          name: "{{ packages }}"
+          state: present
+        vars:
+          packages:
+            - postgresql{{ pg_ver }}
+
+      ## List barman config lists
+      - name: Get a list of all the barman config files
+        shell: find /etc/barman.d/*.conf
+        register: barman_config_files
+
+
+      ## Change Path in barman config files
+      - name: Change postgres path to latest version
+        lineinfile: 
+          path: "{{ item }}"
+          regexp: "^path_prefix"
+          line: path_prefix = "/usr/pgsql-{{ pg_ver }}/bin"
+          state: present
+        with_items: "{{ barman_config_files.stdout_lines }}"
+
+
+      ## Change Path in barman config template
+      #
+      ## NOTE THE RELATIVE PATH
+      - name: Change template path to the latest postgres version
+        lineinfile: 
+          path: ../roles/postgresql_barman/templates/barman_config.conf.j2
+          regexp: "^path_prefix"
+          line: path_prefix = "/usr/pgsql-{{ pg_ver }}/bin"
+          state: present
+        delegate_to: 127.0.0.1
+
+       
+
+
+
+

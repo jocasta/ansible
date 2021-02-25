@@ -1,0 +1,2 @@
+primary_host: localhost
+primary_host_port: 5432 

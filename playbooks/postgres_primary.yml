@@ -1,0 +1,59 @@
+---
+# testing 
+
+- hosts: "{{ target }}"
+  remote_user: ansible
+  become: yes
+  gather_facts: yes
+  vars_files:
+    - group_vars/all.yml
+  
+
+  tasks:
+
+    ##  Validate dbenv
+    - fail: msg="dbenv not acceptable value"
+      when: dbenv not in acceptable_env
+
+    ## Install Postgres
+    - name: Install Postgres
+      include_role:
+        name: postgresql_install
+        apply:
+          tags: always
+      tags: install,never
+
+    ## Setup Primary Postgres Instance
+    - name: Setup Postgres Primary Instance
+      include_role:
+        name: postgresql_primary
+        apply:
+          tags: always
+      tags: primary,never
+
+    ## Setup pgbadger
+    - name: Install and configure pgbadger
+      include_role:
+        name: postgresql_pgbadger
+        apply:
+          tags: always
+      tags: pgbadger,never
+
+    ## Configure Telegraf with plugins
+    - name: Add telegraf config files and plugins
+      include_role:
+        name: postgresql_telegraf
+        apply:
+          tags: always
+      tags: telegraf,never
+
+
+    ## Install Postgres
+    - name: Install Postgres
+      include_role:
+        name: postgresql_barman
+        apply:
+          tags: always
+      tags: barman,never
+
+

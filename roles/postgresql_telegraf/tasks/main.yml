@@ -1,0 +1,63 @@
+---
+# This Role adds the correct files for telegraf to send 
+# VM tags and required postgres metrics to influx / grafana
+
+
+  - name: Add Telegraf Tag file
+    template:
+      src: templates/tags.conf.j2
+      dest: "/etc/telegraf/telegraf.d/tags.conf"
+      owner: root
+      group: root
+      mode: 0644
+      force: yes
+
+  - name: Add rosdbmon_postgres.conf
+    copy:
+      src: files/rosdbmon_postgres.conf
+      dest: /etc/telegraf/telegraf.d/rosdbmon_postgres.conf
+      owner: root
+      group: root
+      mode: 0744
+
+  - name: Add rosdbmon_ssl.conf
+    copy:
+      src: files/rosdbmon_ssl.conf
+      dest: /etc/telegraf/telegraf.d/rosdbmon_ssl.conf
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: Add postgres_custom.conf
+    copy:
+      src: files/postgres_custom.conf
+      dest: /etc/telegraf/telegraf.d/postgres_custom.conf
+      owner: root
+      group: root
+      mode: 0644
+
+
+  - name: Script directory
+    file:
+      path: /usr/local/bin/scripts
+      state: directory
+      owner: root
+      group: root
+      mode: 0755
+
+
+  - name: Add postgres_custom.sh
+    copy:
+      src: files/postgres_custom.sh
+      dest: /usr/local/bin/scripts/postgres_custom.sh
+      owner: root
+      group: root
+      mode: 0755
+
+
+  - name: Restart Telegraf
+    service:
+      name: telegraf
+      state: restarted
+
+...

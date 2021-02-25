@@ -1,0 +1,53 @@
+---
+#
+# This playbook will configure a PostgreSQL Replica 
+#
+
+#
+# Configure PostgreSQL Replica 
+#
+
+  - name: Push HBA rule to Primary 
+    lineinfile:
+      dest: "{{ data_dir }}/pg_hba.conf"
+      owner: "{{ postgres_owner }}"
+      group: "{{ postgres_owner }}"
+      state: present
+      line: "host    replication     postgres        {{ ansible_host }}                 trust"
+    run_once: true
+    delegate_to: "{{ primary_host }}"
+    tags: ['create_replica']
+
+  - name: Reload Primary
+    become_user: "{{ postgres_owner }}"
+    shell: "/usr/pgsql-{{ pg_ver }}/bin/pg_ctl reload -D {{ data_dir }}"
+    run_once: true
+    delegate_to: "{{ primary_host }}"
+    tags: ['create_replica']
+
+  - name: Run pg_basebackup
+    shell: "su - {{ postgres_owner }} -c \"/usr/pgsql-{{ pg_ver }}/bin/pg_basebackup -D {{ data_dir }} -h {{ primary_host }} -p {{ primary_host_port }} -x -R\""
+    register: basebackup_result
+    async: 14000 # give 4 hours 
+    poll: 10 
+    tags: ['create_replica']
+
+  - name: Set Replica Port
+    lineinfile:
+      dest: "{{ data_dir }}/postgresql.conf"
+      owner: "{{ postgres_owner }}"
+      group: "{{ postgres_owner }}"
+      state: present
+      line: "port={{ pg_port }}"
+    tags: ['create_replica']
+
+  - name: reload postgres service unit file
+    command: systemctl daemon-reload
+
+  - name: Check postgres service is enabled
+    service: name=postgresql-{{ pg_ver }} enabled=yes
+
+  - name: Check postgres service is up
+    service: name=postgresql-{{ pg_ver }} state=started
+
+...

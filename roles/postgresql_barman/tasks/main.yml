@@ -1,0 +1,179 @@
+---
+# This Role configures barman for the provided server
+
+    ## Validate dbenv
+    - fail: msg="dbenv not acceptable value"
+      when: dbenv not in acceptable_env
+
+
+    ## SET VARIABLES
+
+    - name: Read Variables from relevant dbenv file
+      include_vars:
+        file: vars/barman_{{ dbenv }}.yml
+
+    - name: get PID of existing "walsender streaming_barman" processes
+      shell: " ps -ef | grep \"postgres: walsender streaming_barman\" | grep '^postgres*' | awk '{print $2}' "
+      register: running_barman_pid
+
+    - name: test output
+      debug:
+        msg: "{{ running_barman_pid.stdout}}"
+
+
+    - name: kill any existing running_barman_pid
+      shell: "kill {{ item }}"
+      with_items: "{{ running_barman_pid.stdout}}"
+      when: running_barman_pid.stdout | length > 0  
+
+    - name: Remove physical_one slot if exists
+      become_user: postgres
+      postgresql_slot:
+        slot_name: barman
+        db: postgres
+        state: absent
+
+#    - name: Remove any Previous replication_slots
+#      postgresql_query:
+#        login_user: postgres 
+#        db: postgres
+#        query: SELECT pg_drop_replication_slot('barman')  
+
+    - name: Install barman-cli & python-psycopg2 for wal-streaming
+      yum:
+        name: "{{ packages }}"
+        state: present
+      vars:
+        packages:
+        - barman-cli
+        - python-psycopg2
+
+
+    - name: Repoint barman with barman-wal-archive
+      lineinfile:
+        path: /db/PostgreSQL/{{ pg_ver }}/data/postgresql.conf
+        backup: yes
+        regexp: "^archive_command"
+        line: "archive_command = 'barman-wal-archive {{ barman_server }} {{ inventory_hostname }} %p' "
+        state: present
+
+    
+    - name: Create streaming_barman user, set Password, grant privs
+      postgresql_user:
+        name: streaming_barman
+        password: "{{ streaming_barman }}"
+        role_attr_flags: REPLICATION
+
+    - name: Create barman user, set Password, grant privs
+      postgresql_user:
+        name: barman
+        password: "{{ barman }}"
+        role_attr_flags: SUPERUSER
+
+
+    - name: Modify pg_hba.conf > Add Barman Server
+      lineinfile:
+        path: /db/PostgreSQL/{{ pg_ver }}/data/pg_hba.conf
+        backup: yes
+        line: |
+          ## {{ dbenv }} Barman Backup Server
+          hostssl    all             all            {{ barman_ip }}           md5
+          
+          ## {{ dbenv }} Barman Streaming
+          hostssl    replication   streaming_barman {{ barman_ip }}           md5
+        state: present
+      notify: Reload PostgreSQL
+   
+    ## ORIGINALLY A HANDLER (notify: Reload PostgreSQL)
+    ## But Needs to run before end of role
+    - name: Reload PostgreSQL
+      service:
+        name: postgresql-{{ pg_ver }}
+        state: reloaded
+   
+
+    - name: Create Old Config dir if not already present
+      file:
+        path: /db/PostgreSQL/{{pg_ver}}/data/old_configs
+        state: directory
+        owner: postgres
+        group: postgres
+        mode: 0744
+ 
+    - name: Move backed up configs to old_config directory
+      shell: mv /db/PostgreSQL/{{pg_ver}}/data/*~  /db/PostgreSQL/{{pg_ver}}/data/old_configs
+
+    - name: Add Barman SSH KEY to Postgres Server
+      authorized_key:
+        user: "{{ postgres_owner }}"
+        state: present
+        key: "{{ barman_ssh }}"
+
+    - name: Create Postgres ssh key variable 
+      shell: cat /var/lib/pgsql/.ssh/id_rsa.pub
+      register: postgres_ssh
+
+    - name: Add Postgres SSH KEY to BARMAN Server
+      authorized_key:
+        user: barman
+        state: present
+        key: "{{ postgres_ssh.stdout }}"
+      delegate_to: "{{ barman_server }}"
+
+
+    - name: Create Server Config File for Barman
+      template:
+        src: templates/barman_config.conf.j2
+        dest: "{{ barman_conf_path }}/{{ inventory_hostname }}.conf"
+        owner: barman
+        group: barman
+        mode: 0640
+      delegate_to: "{{ barman_server }}"
+
+
+    - name: Run Barman Cron to initialise backup directory
+      shell: barman cron
+      become_user: barman
+      delegate_to: "{{ barman_server }}"
+    - pause:
+        seconds: 15
+
+
+    - name: Force Wal Switch on Barman Server
+      shell: barman switch-xlog --force --archive {{ inventory_hostname }}
+      become_user: barman
+      delegate_to: "{{ barman_server }}"
+    - pause:
+        seconds: 15
+
+    - name: Take Initial backup
+      shell: barman backup {{ inventory_hostname }}
+      become_user: barman
+      delegate_to: "{{ barman_server }}"
+
+
+
+##### Separate Paths for PROD / CONTROL vs DEV
+
+
+    - name: PROD - Create a crontab entry for barman to initiate weekly backup
+      cron:
+        name: " Weekly Backup {{ inventory_hostname }}"
+        weekday: "{{ 6 | random }}"
+        minute: "{{ 59 | random }}"
+        hour: "{{ 7 | random }} "
+        user: barman
+        job: "bash /usr/local/bin/backup.sh {{ inventory_hostname }}"
+      delegate_to: "{{ barman_server }}"
+      when: dbenv in acceptable_prod
+
+    - name: DEV - Create a crontab entry for barman to initiate weekly backup
+      cron:
+        name: " Weekly Backup {{ inventory_hostname }}"
+        weekday: "{{ 6 | random }}"
+        minute: "{{ 59 | random }}"
+        hour: "{{ 7 | random }} "
+        user: barman
+        job: "bash /backup/barman/scripts/backup.sh {{ inventory_hostname }}"
+      delegate_to: "{{ barman_server }}"
+      when: dbenv in acceptable_dev

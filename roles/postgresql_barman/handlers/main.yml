@@ -1,0 +1,10 @@
+---
+# file: roles/postgresql_barman/handlers/main.yml
+
+  - name: Reload PostgreSQL
+    service:
+      name: postgresql-{{ pg_ver }}
+      state: reloaded
+
+
+...

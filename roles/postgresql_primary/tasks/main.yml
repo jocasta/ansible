@@ -1,0 +1,118 @@
+---
+
+# This playbook will initilise a PostgreSQL Primary Instance 
+
+  - name: Run initdb on postgres cluster
+    become: true
+    become_user: "{{ postgres_owner }}" 
+    shell: "/usr/pgsql-{{ pg_ver }}/bin/initdb -D {{ data_dir }} -k -E 'UTF8' --lc-collate='en_GB.UTF-8' --lc-ctype='en_GB.UTF-8'"
+    register: initdb_result
+    failed_when: not 'exists but is not empty' in initdb_result.stderr and initdb_result.rc != 0
+    tags: ['configure_instance']
+
+
+  - name: Copy pg_hba.conf 
+    copy:
+      src: "files/pg_hba.conf"
+      dest: "{{ data_dir }}/pg_hba.conf"
+      owner: "{{ postgres_owner }}"
+      group: "{{ postgres_owner }}"
+      mode: 0755
+    tags: ['configure_instance']
+
+  - name: Copy postgresql.conf
+    template:
+      src: "templates/postgresql.conf.j2"
+      dest: "{{ data_dir }}/postgresql.conf"
+      owner: "{{ postgres_owner }}"
+      group: "{{ postgres_owner }}"
+      mode: 0755
+    notify:
+      - Restart PostgreSQL
+    tags: ['configure_instance']
+
+  - name: Create directory for storing old configs when changed by ansible
+    file:
+      path: "{{ data_dir }}/old_configs"
+      owner: "{{ postgres_owner }}"
+      group: "{{ postgres_owner }}"
+      state: directory
+
+  - name: make sure /var/certs exists for storing SSL_CERTS
+    file:
+      path: /var/certs
+      state: directory
+      mode: 0755
+      owner: "{{ postgres_owner }}"
+      group: "{{ postgres_owner }}"
+
+  #### SSL CERTS #####################################
+  #                                                  #
+  #  (1) For ALL DEV servers > Prodev, Bravo, Alpha  #
+  #                                                  #
+  #       - Create a self-signed signed cert         #        
+  #                                                  #
+  #  (2) For all PROD servers > LIVE, CORP, CONTROL  #
+  #                                                  #
+  #       - Create a csr to submit to MicroSoft CA   #
+  #                                                  #
+  ####################################################
+
+  - name: Create Self-Signed SSL Certs for PostgreSQL
+    shell: "openssl req -new -newkey rsa:4096 -nodes -x509 -subj \"/C=/ST=/L=/O=/CN={{ ansible_host }}\" -keyout /var/certs/pg_server.key -out /var/certs/pg_server.crt"
+    register: ssl_cert_result
+    tags: ['configure_instance']
+
+
+  - name: Check SSL cert permissions
+    file:
+      path: "{{ item }}"
+      state: file
+      owner: "{{ postgres_owner }}"
+      group: "{{ postgres_owner }}"
+      mode: 0600
+    with_items:
+    - "/var/certs/pg_server.key"
+    - "/var/certs/pg_server.crt"
+    when: ssl_cert_result.rc == 0
+    tags: ['configure_instance']
+
+
+  - name: Disable group/worldwide permissions 
+    file:
+      path: "{{ data_dir }}"
+      state: directory
+      owner: "{{ postgres_owner }}"
+      group: "{{ postgres_owner }}"
+      mode: 0700
+    tags: ['configure_instance']
+
+  - name: reload postgres service unit file
+    command: systemctl daemon-reload
+    tags: ['configure_instance']
+
+  - name: Check postgres service is enabled
+    service: 
+      name: postgresql-{{ pg_ver }} 
+      enabled: yes
+    tags: ['configure_instance']
+
+  - name: Check postgres service is up
+    service: 
+      name: postgresql-{{ pg_ver }} 
+      state: started
+    when: dbenv in acceptable_dev
+    tags: ['configure_instance']
+
+#
+# Add PostgreSQL Users
+# 
+
+  - name: Adding Ros Monitoring User
+    postgresql_user:
+      name: rosdbmon
+      groups:
+        - pg_monitor
+
+
+...

@@ -1,0 +1,29 @@
+---
+- name: Add Groups 
+  lineinfile:
+    dest: "{{ ansible_root }}/{{ environment }}/hosts"
+    state: present
+    mode: 0644
+    owner: root
+    group: root
+    create: yes
+    line: "{{ item }}"
+  with_items:
+    - "[{{ environment }}]"
+    - "[{{ network }}]"
+    - "[{{ compute_location }}]"
+    - "[{{ host_type }}]"
+  when: ("{{ environment }}" == "development") or ("{{ environment }}" == "production")
+
+  
+- name: multiline match and insert
+  replace: >
+    dest="{{ ansible_root }}/{{ environment }}/hosts"
+    regexp="^(\[{{ item }}\]\n)(?!{{ host }})"
+    replace="\1{{ host }}\n"
+  with_items:
+    - "{{ environment }}"
+    - "{{ network }}"
+    - "{{ compute_location }}"
+    - "{{ host_type }}"
+

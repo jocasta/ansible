@@ -1,0 +1,122 @@
+---
+# This playbook will install PostgreSQL Server
+#
+# postgres package installation 
+#
+  - name: Install PostgreSQL Server
+    yum: state=installed name={{ item }}
+    with_items:
+    - postgresql{{ pg_short_ver }}-server
+    - postgresql{{ pg_short_ver }}-devel
+    - postgresql{{ pg_short_ver }}-contrib
+    - postgresql{{ pg_short_ver }}-libs
+    - postgresql{{ pg_short_ver }}
+    - postgis2_{{ pg_short_ver }}
+    tags: ['core_pg_packages','all_packages']
+
+# install extensions
+  - name: Install Extensions and Additional Packages
+    yum: state=installed name={{ item }}
+    with_items:
+    - bc 
+    - expect 
+    - rsync 
+    tags: ['additional_packages','all_packages']
+
+# get the file system structure correct
+  - name: Ensure mount points exist
+    command: mountpoint -q {{ item }}
+    register: volume_stat
+    failed_when: False
+    changed_when: False
+    with_items:
+    - "{{ data_mount }}" 
+    - "{{ temp_mount }}" 
+    - "{{ backup_mount }}" 
+    - "{{ log_mount }}"
+    tags: ['fs_validation']
+
+  - name: Ensure directories exists
+    file:
+      path: "{{ item }}" 
+      state: directory
+      owner: postgres
+      group: postgres
+      mode: 0755
+    with_items:
+      - "{{ data_dir }}"
+      - "{{ temp_dir }}"
+      - "{{ log_dir }}"
+    tags: ['fs_validation']
+#
+# configure postgres user profile
+#
+  - name: Copy base .bash_profile
+    copy:
+      src=files/bash_profile
+      dest=/var/lib/pgsql/.bash_profile
+      owner=postgres
+      group=postgres
+      mode=644
+      backup=yes
+    tags: ['user_profile']
+
+  - name: Push PGDATA
+    lineinfile:
+      dest=/var/lib/pgsql/.bash_profile
+      regexp="^export PGDATA=.*"
+      line="export PGDATA={{ data_dir }}"
+      state=present
+    tags: ['user_profile']
+
+  - name: Push PGPORT
+    lineinfile:
+      dest=/var/lib/pgsql/.bash_profile
+      regexp="^export PGPORT=.*"
+      line="export PGPORT={{ pg_port }}"
+      state=present
+    tags: ['user_profile']
+
+#
+# Configure Firewall 
+#
+
+  - name: Configure firewalld
+    firewalld:
+      port={{ pg_port }}/tcp
+      permanent=true
+      state=enabled
+      immediate=yes
+    notify:  
+      - Restart Firewalld
+    tags: ['configure_instance']
+
+#
+# Configure PostgreSQL Instance
+#
+
+  - name: Replace PGDATA in service script
+    replace:
+      dest=/usr/lib/systemd/system/postgresql-{{ pg_ver }}.service
+      regexp="^Environment=PGDATA=.*"
+      replace="Environment=PGDATA={{ data_dir }}"
+    tags: ['configure_instance']
+
+  - name: Run initdb on postgres cluster
+    become_user: postgres
+    shell: "/usr/pgsql-{{ pg_ver }}/bin/initdb -D {{ data_dir }} -E 'UTF8' --lc-collate='en_GB.UTF-8' --lc-ctype='en_GB.UTF-8'"
+    tags: ['configure_instance']
+
+  - name: reload postgres service unit file
+    command: systemctl daemon-reload
+    tags: ['configure_instance']
+
+  - name: Check postgres service is enabled
+    service: name=postgresql-{{ pg_ver }} enabled=yes
+    tags: ['configure_instance']
+
+  - name: Check postgres service is up
+    service: name=postgresql-{{ pg_ver }} state=started
+    tags: ['configure_instance']
+
+...

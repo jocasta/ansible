@@ -1,0 +1,15 @@
+# Get the aliases and functions
+if [ -f ~/.bashrc ]; then
+                . ~/.bashrc
+fi
+# User specific environment and startup programs
+PATH=$PATH:$HOME/bin
+export PATH
+unset USERNAME
+set -o vi
+export PATH=/usr/pgsql-9.5/bin:/usr/pgsql-9.5/lib:/usr/bin:/bin:/sbin:/usr/sbin:/usr/local/bin:$HOME/bin:
+#PostgreSQL data location
+export PGPORT=1950
+export PS1=$LOGNAME:'$PWD>'
+export LANG="en_GB"
+export RSYNC_RSH="ssh -q" rsync

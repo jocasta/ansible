@@ -1,0 +1,76 @@
+---
+
+# This playbook will configure pgbadger
+
+#
+# Initial config 
+#
+  - name: Install Packages 
+    yum:
+      name: "{{ packages }}" 
+      state: latest
+    vars: 
+      packages:
+      - httpd 
+      - php 
+      - pgbadger 
+
+  - name: Add HTTPD to Firewall
+    ansible.posix.firewalld:
+      port: 80/tcp
+      permanent: yes
+      state: enabled
+      immediate: yes
+    notify:
+      - Restart Firewalld
+    tags: ['configure_instance']
+
+
+  - name: Ensure HTTPD enabled on boot
+    service: 
+      name: httpd 
+      enabled: yes 
+      state: started
+    tags: ['httpd_configuration']
+
+  - name: Script directory
+    file:
+      path: /usr/local/bin/scripts
+      state: directory
+      owner: root
+      group: root
+      mode: 0755
+    tags: ['httpd_configuration']
+
+  - name: Reports directory
+    file:
+      path: /var/www/html/postgres/reports
+      state: directory
+      owner: apache
+      group: apache
+      mode: 0755
+
+
+  - name: Add pgbadger script to /usr/local/bin/script
+    copy:
+      src: files/pgbadger_generate.sh
+      dest: /usr/local/bin/scripts/pgbadger_generate.sh
+      owner: root
+      group: root
+      mode: 0744
+    tags: ['configure_instance']
+
+
+  - name: Add Pgbadger CRON job
+    cron:
+      name: "Pgbadger Report"
+      hour: "23"
+      minute: "59"
+      user: "root"
+      job: "/usr/local/bin/scripts/pgbadger_generate.sh >> /var/log/pgbadger.log"
+    tags: ['pgbadger_configuration']
+
+  - name: Execute the pgbadger shell script
+    shell: /usr/local/bin/scripts/pgbadger_generate.sh
+
+...

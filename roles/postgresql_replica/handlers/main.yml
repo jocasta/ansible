@@ -1,0 +1,10 @@
+---
+# file: roles/postgresql_replica/handlers/main.yml
+
+- name: Restart PostgreSQL
+  service: name=postgresql-{{ pg_ver }} state=restarted
+
+- name: Restart Firewalld
+  service: name=firewalld state=restarted
+
+...
