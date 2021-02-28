@@ -31,7 +31,8 @@
       state: present
     vars:
       packages:
-      - python2-psycopg2
+      - python-psycopg2
+      - vim
     tags: ['core_pg_packages','all_packages']
 
 
@@ -46,17 +47,22 @@
       generate_ssh_key: yes
     tags: ['user_profile']
 
+
+## In a real situation you are likely to have mounted drives
+## For localised testing here we just create directories.  
+## The Below section would test the mount points
+#
 # get the file system structure correct
-  - name: Ensure mount points exist
-    command: mountpoint -q {{ item }}
-    register: volume_stat
-    failed_when: False
-    changed_when: False
-    with_items:
-    - "{{ data_mount }}" 
-    - "{{ temp_mount }}"  
-    - "{{ log_mount }}"
-    tags: ['fs_validation']
+#  - name: Ensure mount points exist
+#    command: mountpoint -q {{ item }}
+#    register: volume_stat
+#    failed_when: False
+#    changed_when: False
+#    with_items:
+#    - "{{ data_mount }}" 
+#    - "{{ temp_mount }}"  
+#    - "{{ log_mount }}"
+#    tags: ['fs_validation']
 
   - name: Ensure directories exists
     file:
@@ -89,12 +95,12 @@
       path: "{{ postgres_home }}/.ssh/id_rsa"
     register: ssh_exist
 
-  - name: Generate PostgreSQL SSH Keys
-    become_user: "{{ postgres_owner }}" 
-    shell: "ssh-keygen -t rsa -f {{ postgres_home }}/.ssh/id_rsa -q -P ''"
-    register: ssh_test
-    when: ssh_exist.stat.exists == False
-    tags: ['user_profile']
+#  - name: Generate PostgreSQL SSH Keys
+#   become_user: "{{ postgres_owner }}" 
+#    shell: "ssh-keygen -t rsa -f {{ postgres_home }}/.ssh/id_rsa -q -P ''"
+#    register: ssh_test
+#    when: ssh_exist.stat.exists == False
+#    tags: ['user_profile']
 
   - name: Ensure SSH keys set
     file:
