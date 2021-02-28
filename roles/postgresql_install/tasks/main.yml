@@ -33,7 +33,7 @@
       packages:
       - python-psycopg2
       - vim
-      - firewald
+      - firewalld
     tags: ['core_pg_packages','all_packages']
 
 
