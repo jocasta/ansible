@@ -1,0 +1,24 @@
+---
+
+## INDENTLINE
+
+  - name: Clone Ansible Repo from Github
+    ansible.builtin.git:
+      repo: https://github.com/Yggdroot/indentLine.git
+      dest: /home/ansible/.vim/pack/vendor/start/indentLine
+      accept_hostkey: yes
+    become_user: ansible
+
+  - name: create vimrc
+    ansible.builtin.lineinfile:
+      path: /home/ansible/.vimrc
+      line: |
+  ⦙ ⦙ ⦙ ⦙ autocmd FileType yaml setlocal ts=2 sts=2 sw=2 expandtab
+  ⦙ ⦙ ⦙ ⦙ let g:indentLine_char = '⦙'
+      create: yes
+      owner: ansible
+      group: ansible
+      mode: '0644'
+
+  - name: Run Vim command
+    shell: vim -u NONE -c \"helptags  ~/.vim/pack/vendor/start/indentLine/doc\" -c \"q\"
