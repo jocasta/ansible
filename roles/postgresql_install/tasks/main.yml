@@ -8,6 +8,11 @@
 # if you keep this on you will likely have to fix ssh auth
 # between barman and postgres
 
+  - name: Install PostgreSQL Centos Repository
+    yum:
+      name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+      state: present
+
   - name: Switch SELinux Off
     selinux:
       state: disabled
@@ -31,7 +36,7 @@
       state: present
     vars:
       packages:
-      - python2-psycopg2
+      - python-psycopg2
     tags: ['core_pg_packages','all_packages']
 
 

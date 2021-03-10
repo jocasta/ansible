@@ -11,10 +11,6 @@
 
   tasks:
 
-    ##  Validate dbenv
-    - fail: msg="dbenv not acceptable value"
-      when: dbenv not in acceptable_env
-
     ## Install Postgres
     - name: Install Postgres
       include_role:
@@ -49,7 +45,7 @@
 
 
     ## Install Postgres
-    - name: Install Postgres
+    - name: Install Barman
       include_role:
         name: postgresql_barman
         apply:
