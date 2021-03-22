@@ -11,13 +11,22 @@
 
   tasks:
 
+    ## Mount Disks
+    - name: Mount Disks for logs, dbtemp, db
+      include_role:
+        name: postgresql_mount_disks
+        apply:
+          tags: always
+      tags: full_stack,mount_disks,never
+
+
     ## Install Postgres
     - name: Install Postgres
       include_role:
         name: postgresql_install
         apply:
           tags: always
-      tags: install,never
+      tags: full_stack,install,never
 
     ## Setup Primary Postgres Instance
     - name: Setup Postgres Primary Instance
@@ -25,7 +34,7 @@
         name: postgresql_primary
         apply:
           tags: always
-      tags: primary,never
+      tags: full_stack,primary,never
 
     ## Setup pgbadger
     - name: Install and configure pgbadger
@@ -33,7 +42,7 @@
         name: postgresql_pgbadger
         apply:
           tags: always
-      tags: pgbadger,never
+      tags: full_stack,pgbadger,never
 
     ## Configure Telegraf with plugins
     - name: Add telegraf config files and plugins
@@ -41,7 +50,7 @@
         name: postgresql_telegraf
         apply:
           tags: always
-      tags: telegraf,never
+      tags: full_stack,telegraf,never
 
 
     ## Install Postgres
@@ -50,6 +59,6 @@
         name: postgresql_barman
         apply:
           tags: always
-      tags: barman,never
+      tags: full_stack,barman,never
 
 
