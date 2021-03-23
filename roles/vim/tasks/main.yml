@@ -20,5 +20,11 @@
       group: ansible
       mode: '0644'
 
-  - name: Run Vim command
-    shell: vim -u NONE -c \"helptags  ~/.vim/pack/vendor/start/indentLine/doc\" -c \"q\"
+- name: Create .vimrc file
+  ansible.builtin.copy:
+    src: files/vimrc
+    dest: /home/ansible/.vimrc
+    owner: ansible
+    group: ansible
+    mode: '0744'
+
