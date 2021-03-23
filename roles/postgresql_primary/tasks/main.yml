@@ -101,7 +101,6 @@
     service: 
       name: postgresql-{{ pg_ver }} 
       state: started
-    when: dbenv in acceptable_dev
     tags: ['configure_instance']
 
 #
@@ -110,9 +109,18 @@
 
   - name: Adding Ros Monitoring User
     postgresql_user:
-      name: rosdbmon
+      name: pg_monitoring
       groups:
         - pg_monitor
+
+  - name: Create pg_mike superuser
+    postgresql_user:
+      name: pg_mike
+      password: jocasta
+      role_attr_flags: SUPERUSER
+
+
+
 
 
 ...
