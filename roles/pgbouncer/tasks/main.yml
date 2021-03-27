@@ -1,0 +1,39 @@
+---
+
+# This playbook will configure pgbouncer
+
+#
+# Initial config 
+#
+
+  - name: Install PostgreSQL Centos Repository
+    yum:
+      name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+      state: present
+
+  - name: Install Packages 
+    yum:
+      name: "{{ packages }}" 
+      state: latest
+    vars: 
+      packages:
+      - pgbouncer 
+
+  - name: Add pgbouncer to Firewall
+    ansible.posix.firewalld:
+      port: 6543/tcp
+      permanent: yes
+      state: enabled
+      immediate: yes
+    notify:
+      - Restart Firewalld
+
+
+  - name: Ensure pgbouncer enabled on boot
+    service: 
+      name: pgbouncer 
+      enabled: yes 
+      state: started
+
+
+...
