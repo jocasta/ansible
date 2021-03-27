@@ -1,0 +1,22 @@
+---
+# testing 
+
+- hosts: all
+  remote_user: ansible
+  become: yes
+  gather_facts: yes
+  vars_files:
+    - group_vars/all.yml
+  
+
+  tasks:
+
+    ## Install pgbouncer
+    - name: Install & Configure pgbouncer
+      include_role:
+        name: pgbouncer
+        apply:
+          tags: always
+      tags: full_stack,pgbouncer,never
+
+
