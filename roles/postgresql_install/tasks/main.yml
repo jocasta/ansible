@@ -122,6 +122,12 @@
 # Configure Firewall 
 #
 
+  - name: Start firewalld if not started
+    ansible.builtin.service:
+      name: firewalld
+      state: started
+
+
   - name: Configure firewalld
     ansible.posix.firewalld:
       port: "{{ pg_port }}/tcp"
