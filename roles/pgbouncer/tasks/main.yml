@@ -19,7 +19,12 @@
       packages:
       - pgbouncer 
 
-  - name: Add pgbouncer to Firewall
+
+#
+# Configure Firewall 
+#
+
+  - name: Configure firewalld
     ansible.posix.firewalld:
       port: 6543/tcp
       permanent: yes
@@ -27,6 +32,7 @@
       immediate: yes
     notify:
       - Restart Firewalld
+
 
 
   - name: Ensure pgbouncer enabled on boot
