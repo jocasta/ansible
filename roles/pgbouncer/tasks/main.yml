@@ -20,6 +20,11 @@
       - pgbouncer 
 
 
+  - name: Switch SELinux Off
+    selinux:
+      state: disabled
+
+
 #
 # Configure Firewall 
 #
