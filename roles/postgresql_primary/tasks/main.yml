@@ -109,18 +109,20 @@
 
   - name: Adding Ros Monitoring User
     postgresql_user:
-      name: pg_monitoring
+      name: monitoring_pg
       groups:
         - pg_monitor
 
   - name: Create pg_mike superuser
     postgresql_user:
-      name: pg_mike
+      name: mike_pg
       password: jocasta
       role_attr_flags: SUPERUSER
 
-
-
-
+  - name: Create pgbouncer user
+    postgresql_user:
+      name: pgbouncer
+      password: pgbouncer
+      role_attr_flags: SUPERUSER
 
 ...
